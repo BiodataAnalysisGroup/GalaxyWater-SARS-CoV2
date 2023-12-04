@@ -1,3 +1,18 @@
-h4 + p {
-    line-height: 1.2;
+span {
+  display: flex;
+  justify-content: space-between;  
+}
+
+span button {
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+hr {
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.sessionInfo div{
+  padding-top: 1rem;
 }

@@ -1,22 +1,28 @@
-# load libraries --------------------
-library(data.table)
-library(stringr)
-library(ggplot2)
-library(plotly)
-library(paletteer)
-# for colors https://r-charts.com/color-palettes/
-
 # Freyja pipeline results -------------------------------------------------
 
-freyja_results_preprocessing = function(x){
+freyja_results_preprocessing = function(data, metadata){
   
   # preprocess Freyja results -----------------------------------------------
-
-  # load file
-  freyja_res = fread(x)
   
-  # # rename first column
-  # colnames(freyja_res)[1] = "Sample"
+  # rename input data 1st column (Sample IDs)
+  colnames(data)[1] = 'Sample'
+  
+  # merge input Data and Metadata based on Sample IDs (Sample (first) column)
+  freyja_res = merge(
+    x = data, 
+    y = metadata,
+    by.x = 'Sample',
+    by.y = 'Sample',
+    all.x = TRUE
+  )
+  
+  # rename date column to 'Date'
+  if(
+    grepl( fixed = T, pattern = 'date', x = tolower(  colnames(freyja_res))) |> any()
+  ){
+    date_idx = grep( fixed = T, pattern = 'date', x = tolower(  colnames(freyja_res)))
+    colnames(freyja_res)[date_idx] = 'Date'
+  }
   
   # remove ".fastq" suffix
   freyja_res$Sample = str_split(freyja_res$Sample, "\\.", simplify = TRUE)[, 1]
@@ -53,32 +59,6 @@ freyja_results_preprocessing = function(x){
   # convert to data.table
   freyja_lineages = freyja_lineages |> rbindlist(idcol = "Sample")
   
-  # Generate artificial metadata (to be removed) ----------------------------
-  
-  # # generate pseudo dates
-  # pseudo_dates = seq(
-  #   from = as.Date("2020-01-01"),
-  #   by = "day",
-  #   length.out = freyja_summarized$Sample |> unique() |> length()
-  # )
-  # 
-  # # add pseudo dates to the results
-  # freyja_summarized$pseudo_date = pseudo_dates[ freyja_summarized$Sample |> rleid() ]
-  # freyja_lineages$pseudo_date = pseudo_dates[ freyja_lineages$Sample |> rleid() ]
-  # 
-  # # generate pseudo clusters
-  # pseudo_clusters = c(
-  #   rep("ClusterA", 100),
-  #   rep("ClusterB", 100),
-  #   rep( "ClusterC", length(unique(freyja_summarized$Sample))-200 )
-  # )
-  # # and mix
-  # pseudo_clusters = sample(x = pseudo_clusters, size = length(pseudo_clusters), replace = FALSE)
-  # 
-  # # add pseudo dates to the results
-  # freyja_summarized$pseudo_clusters = pseudo_clusters[ freyja_summarized$Sample |> rleid() ]
-  # freyja_lineages$pseudo_clusters = pseudo_clusters[ freyja_lineages$Sample |> rleid() ]
-  
   # Index for additional (unknown) columns
   idx = !colnames(freyja_res) %in% c("Sample",
                                      "summarized",
@@ -86,13 +66,14 @@ freyja_results_preprocessing = function(x){
                                      "abundances",
                                      "resid",
                                      "coverage")
+  unknown_colnames = colnames(freyja_res)[idx]
   
   # match with Sample column (IDs) and add to summarized and lineages DTs
-  for(i in seq(ncol(freyja_res[,idx, with = FALSE]))){
+  for(j in seq(length(unknown_colnames)) ){
     # column name
-    colName = colnames(freyja_res[,idx, with = FALSE])[i]
+    colName = unknown_colnames[j] # colnames(freyja_res[,idx, with = FALSE])[i]
     # column values
-    colValues = freyja_res[,idx, with = FALSE][,i, with = FALSE]
+    colValues = as.data.frame(freyja_res)[, colName] # freyja_res[,colName, with = FALSE]
     # add column to summarized and lineages DTs
     freyja_summarized = freyja_summarized[
       , (colName) :=  colValues[ freyja_summarized$Sample |> rleid() ]
@@ -116,6 +97,8 @@ freyja_results_preprocessing = function(x){
   )
 }
 
+
+
 # Freyja graph generation -------------------------------------------------
 
 freyja_results_graph = function(
@@ -129,34 +112,34 @@ freyja_results_graph = function(
   
   # User input selection
   # date range
-  x$summarized = x$summarized[Date >= from & Date <= to]
+  x = x[Date >= from & Date <= to]
   
   # MIN percentage threshold for report
-  x$summarized = x$summarized[Percentage >= percentageThreshold/100]
+  x = x[Percentage >= percentageThreshold/100]
   
   # barplot: Date vs Perc ---------------------------------------------------
 
   # tooltip label 
   # https://stackoverflow.com/questions/34605919/formatting-mouse-over-labels-in-plotly-when-using-ggplotly
-  x$summarized$tooltip_label = paste0(
-    x$summarized$Variant, ": ", round(100 * x$summarized$Percentage, digits = 3), "%"
+  x$tooltip_label = paste0(
+    x$Variant, ": ", round(100 * x$Percentage, digits = 3), "%"
   )
   # summarize and generate reactive label
-  x$summarized = x$summarized[, by = Sample, tooltip_label := paste(tooltip_label, collapse = "\n")]
+  x = x[, by = Sample, tooltip_label := paste(tooltip_label, collapse = "\n")]
   
   # Graph drawing objective
   if( as.integer(xAxisSelection) == 1 & (samplesCluster == "None" | is.null(samplesCluster) )){
     # 1. Time series
     
     # update tooltip label
-    x$summarized$tooltip_label = paste(
-      x$summarized$tooltip_label,
-      paste0("Sample: ", x$summarized$Sample),
+    x$tooltip_label = paste(
+      x$tooltip_label,
+      paste0("Sample: ", x$Sample),
       sep = '\n'
     )
     
     # static ggplot2
-    gr = ggplot(data = x$summarized, aes(text = tooltip_label)) +
+    gr = ggplot(data = x, aes(text = tooltip_label)) +
       
       geom_bar(
         aes(x = Date, y = Percentage, fill = Variant),
@@ -197,14 +180,14 @@ freyja_results_graph = function(
     # 2.1. Samples/No clusters
 
     # update tooltip label
-    x$summarized$tooltip_label = paste(
-      x$summarized$tooltip_label,
-      paste0("Date: ", x$summarized$Date),
+    x$tooltip_label = paste(
+      x$tooltip_label,
+      paste0("Date: ", x$Date),
       sep = '\n'
     )
     
     # static ggplot2
-    gr = ggplot(data = x$summarized, aes(text = tooltip_label)) +
+    gr = ggplot(data = x, aes(text = tooltip_label)) +
       
       geom_bar(
         aes(x = reorder(Sample, Date), y = Percentage, fill = Variant),
@@ -239,14 +222,14 @@ freyja_results_graph = function(
     # 2.2. Samples/Clusters
     
     # update tooltip label
-    x$summarized$tooltip_label = paste(
-      x$summarized$tooltip_label,
-      paste0("Date: ", x$summarized$Date),
+    x$tooltip_label = paste(
+      x$tooltip_label,
+      paste0("Date: ", x$Date),
       sep = '\n'
     )
     
     # static ggplot2
-    gr = ggplot(data = x$summarized, aes(text = tooltip_label)) +
+    gr = ggplot(data = x, aes(text = tooltip_label)) +
       
       geom_bar(
         aes(x = reorder(Sample, Date), y = Percentage, fill = Variant),
@@ -278,8 +261,12 @@ freyja_results_graph = function(
     )
   }
   
+  
+  
   # lineplot: Date vs Perc ---------------------------------------------------
   # lineplot: Date vs Perc ---------------------------------------------------
+  
+  
   
   # return result
   return(gr_plotly)
