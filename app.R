@@ -300,7 +300,7 @@ server <- function(input, output, session) {
     # require both data & metadata
     req(input$upload_data)
     req(input$upload_metadata)
-    paste0("Date: ", file.info(input$upload_data$datapath)$ctime)
+    paste0("Date: ", file.info(input$upload_data$datapath)$mtime)
   })
   output$NoSamples <- renderText({
     # require both data & metadata
