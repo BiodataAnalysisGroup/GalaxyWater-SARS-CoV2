@@ -33,15 +33,16 @@ ui <- navbarPage(
     sidebarLayout(
       sidebarPanel = sidebarPanel(
         width = 2,
-        h3('SARS-CoV-2 barplot'),
+        h4('Barplot'),
         hr(),
         # Upload user data (compatible with Galaxy output) 
         fileInput(inputId = "upload_data", label = "Upload data"),
         hr(),
         # Upload user metadata (compatible with Galaxy output) 
         fileInput("upload_metadata", label = "Upload metadata"),
-        # hr(),
-        # tableOutput("upload_data_output"),
+        hr(),
+        downloadButton("downloadSummarized", "Download summarized", class = "customButton"),
+        downloadButton("downloadLineages", "Download lineages"),
         hr(),
         # Plot by Date or Samples (x-axis)
         radioButtons(
@@ -243,7 +244,27 @@ server <- function(input, output, session) {
     # return DT
     return(res_dt)
   })
+  
+  # -------------------------------------------------------------------------
 
+  # download summarized DT as CSV
+  output$downloadSummarized <- downloadHandler(
+    filename = "summarized.csv",
+    content = function(file) {
+      # show searched data from barplot
+      # req(input$barplotDTsummarized_rows_all)
+      searched_rows <- input$barplotDTsummarized_rows_all
+      # check for selection event
+      if(!is.null(searched_rows)){
+        # subset for search results
+        write.csv(freyjaSummarized_initial()[searched_rows,], file)  
+      } else {
+        # write the entire processed table
+        write.csv(freyjaSummarized_initial(), file)  
+      }
+    }
+  )
+  
   # -------------------------------------------------------------------------
 
   # barplot Tab - DT - lineages
@@ -252,7 +273,7 @@ server <- function(input, output, session) {
     req(input$upload_data)
     req(input$upload_metadata)
     # generate DT
-    res_dt = freyjaLineages() # freyjaList()[[2]]
+    res_dt = freyjaLineages()
     # User input selection
     # date range
     res_dt = res_dt[Date >= input$barplotDateRange[1] & Date <= input$barplotDateRange[2]]
@@ -261,6 +282,26 @@ server <- function(input, output, session) {
     # return DT
     return(res_dt)
   })
+  
+  # -------------------------------------------------------------------------
+  
+  # download summarized DT as CSV
+  output$downloadLineages <- downloadHandler(
+    filename = "lineages.csv",
+    content = function(file) {
+      # show searched data from barplot
+      # req(input$barplotDTlineages_rows_all)
+      searched_rows <- input$barplotDTlineages_rows_all
+      # check for selection event
+      if(!is.null(searched_rows)){
+        # subset for search results
+        write.csv(freyjaLineages()[searched_rows,], file)  
+      } else {
+        # write the entire processed table
+        write.csv(freyjaLineages(), file)  
+      }
+    }
+  )
   
   # -------------------------------------------------------------------------
 
@@ -272,7 +313,7 @@ server <- function(input, output, session) {
       req(input$barplotDTsummarized_rows_all)
       searched_rows <- input$barplotDTsummarized_rows_all
 
-      # check for plotly selection event
+      # check for selection event
       if(!is.null(searched_rows)){
         freyjaSummarized(
           freyjaSummarized_initial()[searched_rows,]
