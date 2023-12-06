@@ -1,3 +1,7 @@
+h4 {
+  line-height: 2.5rem;
+}
+
 span {
   display: flex;
   justify-content: space-between;  

@@ -5,155 +5,138 @@ library(data.table)
 library(plotly)
 library(shinyjs)
 library(stringr)
-library(paletteer)
-# for colors https://r-charts.com/color-palettes/
+library(paletteer) # for colors see: https://r-charts.com/color-palettes/
 
 # load Freyja pipeline preprocessing and graph functions
-source("freyja_output_preprocessing.R")
+source("Freyja_functions.R")
 
 # Define UI
-ui <- navbarPage(
+ui <- fluidPage(
   
   # Resetable with shinyjs
   useShinyjs(),
   
-  # navbarPage options ------------------------------------------------------
-  title = "Galaxy SARS-CoV-2",
-  id = "mainNavBarPage",
-  # header = "Test header",
-  # footer = "Test footer",
-  # theme = ,
-  # icon = ,
+  # -------------------------------------------------------------------------
+  
+  id = "mainFluidPage",
   includeCSS("www/custom.css"),
-
-  # barplot tab -------------------------------------------------------------
-  tabPanel(
-    title = "Barplot",
-    id = "barplotTab",
-    sidebarLayout(
-      sidebarPanel = sidebarPanel(
-        width = 2,
-        h4('Barplot'),
-        hr(),
-        # Upload user data (compatible with Galaxy output) 
-        fileInput(inputId = "upload_data", label = "Upload data"),
-        hr(),
-        # Upload user metadata (compatible with Galaxy output) 
-        fileInput("upload_metadata", label = "Upload metadata"),
-        hr(),
-        downloadButton("downloadSummarized", "Download summarized", class = "customButton"),
-        downloadButton("downloadLineages", "Download lineages"),
-        hr(),
-        # Plot by Date or Samples (x-axis)
-        radioButtons(
-          inputId = "barplotXaxisSelection", 
-          label = "Χ-axis values", # h4("Χ-axis values"),
-          choices = list(
-            "Date" = 1, 
-            "Sample" = 2),
-          selected = 2),
-        hr(),
-        # Date range
-        dateRangeInput(
-          inputId = 'barplotDateRange',
-          label = "Date range", # h4("Date range"),
-          start = NULL,
-          end = NULL, 
-          min = NULL,
-          max = NULL
-        ),
-        hr(), 
-        # Cluster variable
-        selectInput(
-          inputId = "barplotSelectCluster",
-          label = "Cluster variable", # h4("Cluster variable"),
-          choices = list(  
-            "None",
-            "Sample",
-            "Variant",
-            "Percentage",
-            "Date",
-            "pseudo_clusters"
-          ), # fix with columns from outputs as choices (not from the initial table)
-          selected = "None"
-        ),
-        hr(),
-        # Percentage
-        sliderInput(
-          inputId = "barplotPercentage",
-          label = "Percentage (%)",
-          min = 0,
-          max = 100,
-          value = 0
-        ),
-        hr(),
-        tags$span(
-          # Reset
-          actionButton(
-            inputId = "barplotResetButton", 
-            label = "Reset" ,
-            icon = icon("broom")
-          ),
-          # Update
-          actionButton(
-            inputId = "barplotUpdateButton", 
-            label = "Update graph" ,
-            icon = icon("wand-magic-sparkles")
-          )
-        ),
-        hr(),
-        # Session information
-        tags$strong("Session information"),
-        tags$div(
-          class = "sessionInfo",
-          textOutput("pipeline"),
-          textOutput("fileName"),
-          textOutput("fileDate"),
-          textOutput("NoSamples"),
-          textOutput("NoLineages")
-        ),
-        hr()
+  
+  # -------------------------------------------------------------------------
+  
+  sidebarLayout(
+    sidebarPanel = sidebarPanel(
+      width = 2,
+      h4('SARS-CoV-2 dashboard\nfor Galaxy pipelines'),
+      hr(),
+      # Upload user data (compatible with Galaxy output)
+      fileInput(inputId = "upload_data", label = "Upload data"),
+      hr(),
+      # Upload user metadata (compatible with Galaxy output)
+      fileInput("upload_metadata", label = "Upload metadata"),
+      hr(),
+      downloadButton("downloadSummarized", "Download summarized", class = "customButton"),
+      downloadButton("downloadLineages", "Download lineages"),
+      hr(),
+      # Plot by Date or Samples (x-axis)
+      radioButtons(
+        inputId = "barplotXaxisSelection",
+        label = "Χ-axis values",
+        # h4("Χ-axis values"),
+        choices = list("Date" = 1,
+                       "Sample" = 2),
+        selected = 2
       ),
-      mainPanel = mainPanel(
-        width = 10,
-        # Reactive barplot --------------------------------------------------------
-        plotlyOutput(
-          outputId = 'barplotGraph',
-          height = "700px"
+      hr(),
+      # Date range
+      dateRangeInput(
+        inputId = 'barplotDateRange',
+        label = "Date range",
+        # h4("Date range"),
+        start = NULL,
+        end = NULL,
+        min = NULL,
+        max = NULL
+      ),
+      hr(),
+      # Cluster variable
+      selectInput(
+        inputId = "barplotSelectCluster",
+        label = "Cluster variable",
+        # h4("Cluster variable"),
+        choices = list(
+          "None",
+          "Sample",
+          "Variant",
+          "Percentage",
+          "Date",
+          "pseudo_clusters"
         ),
-        # DataTable ---------------------------------------------------------------
-        tabsetPanel(
-          id = "barplotDTpanel",
-          tabPanel(
-            title = "Summarized",
-            DT::dataTableOutput(
-              outputId = 'barplotDTsummarized'
-            )
-          ),
-          tabPanel(
-            title = "Lineages",
-            DT::dataTableOutput(
-              outputId = 'barplotDTlineages'
-            )
-          )
+        # fix with columns from outputs as choices (not from the initial table)
+        selected = "None"
+      ),
+      hr(),
+      # Percentage
+      sliderInput(
+        inputId = "barplotPercentage",
+        label = "Percentage (%)",
+        min = 0,
+        max = 100,
+        value = 0
+      ),
+      hr(),
+      tags$span(
+        # Reset
+        actionButton(
+          inputId = "barplotResetButton",
+          label = "Reset" ,
+          icon = icon("broom")
+        ),
+        # Update
+        actionButton(
+          inputId = "barplotUpdateButton",
+          label = "Update graph" ,
+          icon = icon("wand-magic-sparkles")
         )
-        # -------------------------------------------------------------------------
+      ),
+      hr(),
+      # Session information
+      tags$strong("Session information"),
+      tags$div(
+        class = "sessionInfo",
+        textOutput("pipeline"),
+        textOutput("fileName"),
+        textOutput("fileDate"),
+        textOutput("NoSamples"),
+        textOutput("NoLineages")
+      ),
+      hr()
+    ),
+    mainPanel = mainPanel(
+      width = 10,
+      # Reactive graphs
+      tabsetPanel(
+        id = "graphPanel",
+        tabPanel(
+          title = "Barplot",
+          plotlyOutput(outputId = 'barplotGraph',
+                       height = "700px")
+        ),
+        tabPanel(
+          title = "Lineplot",
+          plotlyOutput(outputId = 'lineplotGraph',
+                       height = "700px")
+        )
+      ),
+      # DataTables
+      tabsetPanel(
+        id = "DTpanel",
+        tabPanel(title = "Summarized",
+                 DT::dataTableOutput(outputId = 'barplotDTsummarized')),
+        tabPanel(title = "Lineages",
+                 DT::dataTableOutput(outputId = 'barplotDTlineages'))
       )
     )
-  ),
-  
-  # lineplot tab ------------------------------------------------------------
-  tabPanel(
-    title = "Lineplot",
-    id = "lineplotTab",
-    sidebarLayout(
-      sidebarPanel = sidebarPanel(width = 2,
-                                  h2('test')),
-      mainPanel = mainPanel(width = 10,
-                            h2('test'))
-    )
   )
-  #
 )
 
 # Define server logic required to draw a histogram
@@ -204,8 +187,8 @@ server <- function(input, output, session) {
     req(input$upload_data)
     req(input$upload_metadata)
     
-    # generate plot
-    res_plot = freyja_results_graph(
+    # generate barplot
+    res_barplot = freyja_barplot(
       x = freyjaSummarized(), 
       from = input$barplotDateRange[1], # starting from
       to = input$barplotDateRange[2], # ending on
@@ -217,19 +200,51 @@ server <- function(input, output, session) {
     # # by default:
     # # hide display mode bar
     # # compare data on hover
-    # res_plot <- res_plot  |>
+    # res_barplot <- res_barplot  |>
     #   layout(
     #     hovermode = 'x'
     #   )
     # # config(displayModeBar = FALSE) |>
-
+    
     # return plot
-    return(res_plot)
+    return(res_barplot)
   })
+  
+  # -------------------------------------------------------------------------
+  
+  # # lineplot Tab - graph
+  # output$lineplotGraph <- renderPlotly({
+  #   
+  #   # require input data & metadata upload
+  #   req(input$upload_data)
+  #   req(input$upload_metadata)
+  #   
+  #   # generate barplot
+  #   res_lineplot = freyja_lineplot(
+  #     x = freyjaSummarized(), 
+  #     from = input$barplotDateRange[1], # starting from
+  #     to = input$barplotDateRange[2], # ending on
+  #     xAxisSelection = input$barplotXaxisSelection, # select to plot by Date or by Sample (default)
+  #     percentageThreshold = input$barplotPercentage, # % MIN threshold
+  #     samplesCluster = input$barplotSelectCluster # cluster variable
+  #   )
+  #   
+  #   # # by default:
+  #   # # hide display mode bar
+  #   # # compare data on hover
+  #   # res_lineplot <- res_lineplot  |>
+  #   #   layout(
+  #   #     hovermode = 'x'
+  #   #   )
+  #   # # config(displayModeBar = FALSE) |>
+  #   
+  #   # return plot
+  #   return(res_lineplot)
+  # })
 
   # -------------------------------------------------------------------------
 
-  # barplot Tab - DT - summarized
+  # Tab - DT - summarized
   output$barplotDTsummarized <- DT::renderDataTable({
     # require input data & metadata upload
     req(input$upload_data)
@@ -267,7 +282,7 @@ server <- function(input, output, session) {
   
   # -------------------------------------------------------------------------
 
-  # barplot Tab - DT - lineages
+  # Tab - DT - lineages
   output$barplotDTlineages <- DT::renderDataTable({
     # require input data & metadata upload
     req(input$upload_data)
@@ -361,9 +376,7 @@ server <- function(input, output, session) {
   freyjaSummarized = reactiveVal(NA)
   freyjaLineages = reactiveVal(NA)
   
-  # # -------------------------------------------------------------------------
-  # output$upload_data_output <- renderTable(input$upload_data)
-  # # -------------------------------------------------------------------------
+  # -------------------------------------------------------------------------
   
   observeEvent(
     c(input$upload_data, input$upload_metadata),
