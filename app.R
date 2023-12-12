@@ -5,6 +5,7 @@ library(data.table)
 library(plotly)
 library(shinyjs)
 library(stringr)
+library(dplyr)
 library(paletteer) # for colors see: https://r-charts.com/color-palettes/
 
 # load Freyja pipeline preprocessing and graph functions
@@ -26,7 +27,7 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel = sidebarPanel(
       width = 2,
-      h4('SARS-CoV-2 dashboard\nfor Galaxy pipelines'),
+      h3('SARS-CoV-2 dashboard'),
       hr(),
       # Upload user data (compatible with Galaxy output)
       fileInput(inputId = "upload_data", label = "Upload data"),
@@ -250,7 +251,7 @@ server <- function(input, output, session) {
     req(input$upload_data)
     req(input$upload_metadata)
     # generate DT
-    res_dt = freyjaSummarized() #freyjaList()[[1]]
+    res_dt = freyjaSummarized()
     # User input selection
     # date range
     res_dt = res_dt[Date >= input$barplotDateRange[1] & Date <= input$barplotDateRange[2]]
@@ -362,7 +363,7 @@ server <- function(input, output, session) {
     # require both data & metadata
     req(input$upload_data)
     req(input$upload_metadata)
-    paste0("Samples: ", as.character( nrow(freyjaSummarized_initial()) ))
+    paste0("Samples: ", freyjaSummarized_initial()$Sample |> unique() |> length() |> as.character() )
   })
   output$NoLineages <- renderText({
     # require both data & metadata

@@ -101,379 +101,331 @@ freyja_results_preprocessing = function(data, metadata){
 
 # Barplot generation ----------------------------------------------------
 
-freyja_barplot = function(
-    x,    
-    from, 
-    to, 
-    percentageThreshold,
-    xAxisSelection,
-    samplesCluster = NULL
-  ){ 
-  
+freyja_barplot = function(x,
+                          from,
+                          to,
+                          percentageThreshold,
+                          xAxisSelection,
+                          samplesCluster = NULL) {
   # User input selection
   # date range
   x = x[Date >= from & Date <= to]
   
   # MIN percentage threshold for report
-  x = x[Percentage >= percentageThreshold/100]
+  x = x[Percentage >= percentageThreshold / 100]
   
-  # barplot: Date vs Perc ---------------------------------------------------
-
-  # tooltip label 
-  # https://stackoverflow.com/questions/34605919/formatting-mouse-over-labels-in-plotly-when-using-ggplotly
-  
-  # x$tooltip_label = paste0(
-  #   x$Variant, ": ", round(100 * x$Percentage, digits = 3), "%"
-  # )
-  # 
-  # # summarize and generate reactive label
-  # x = x[, by = Sample, tooltip_label := paste(tooltip_label, collapse = "\n")]
-  
+  # 100*Perc
   x$Percentage = x$Percentage * 100
   
-  # Graph drawing objective
-  if( as.integer(xAxisSelection) == 1 & (samplesCluster == "None" | is.null(samplesCluster) )){
-    # 1. Time series
+  # Barplot drawing
+  if (as.integer(xAxisSelection) == 1 &
+      (samplesCluster == "None" | is.null(samplesCluster))) {
+    # 1. Time series/No clusters
     
-    # update tooltip label
-    # x$tooltip_label = paste(
-    #   x$tooltip_label,
-    #   paste0("Sample: ", x$Sample),
-    #   sep = '\n'
-    # )
+    # plot
+    gr_plotly = plot_ly(
+      x,
+      x = ~ Date,
+      y = ~ Percentage,
+      type = 'bar',
+      color = ~ Variant,
+      stroke = ~ Variant,
+      strokes = "grey50"
+    ) |>
+      layout(
+        yaxis = list(ticksuffix = "%", title = ""),
+        xaxis = list(showticklabels = TRUE, title = ""),
+        barmode = 'stack',
+        hovermode = "x unified"
+      )
     
-    # static ggplot2
-    # gr = ggplot(data = x, aes(text = tooltip_label)) +
-    #   
-    #   geom_bar(
-    #     aes(x = Date, y = Percentage, fill = Variant),
-    #     position = "fill", # position_dodge2(preserve = "single"), # "dodge", #
-    #     stat = "identity"
-    #   ) +
-    #   
-    #   scale_y_continuous(expand = c(0, 0), labels = scales::percent) +
-    #   # scale_x_date(
-    #   #   expand = c(0, 0), 
-    #   #   date_breaks = paste0("1 ", scaleDate)
-    #   #   ) +
-    #   
-    #   scale_fill_manual(values = paletteer_d("ggsci::default_igv")) +
-    #   
-    #   theme_minimal() +
-    #   
-    #   theme(
-    #     panel.grid = element_blank(),
-    #     
-    #     axis.ticks = element_line(linewidth = .3),
-    #     axis.text.x = element_text(
-    #       size = 8,
-    #       angle = 45,
-    #       hjust = 1
-    #     ),
-    #     
-    #     plot.margin = margin(20, 20, 20, 20)
-    #   ) + 
-    #   
-    #   labs( x = "", y = "" )
-    # 
-    # # interactive plotly
-    # gr_plotly = ggplotly(gr, tooltip = c("text", "x"), dynamicTicks = TRUE) 
-      
-      
-      
-      gr_plotly = plot_ly(
-          x, x = ~Date, y = ~Percentage, type = 'bar', 
-          color = ~Variant, stroke = ~Variant, strokes = "grey50"
-      ) |> 
-          layout(
-              yaxis = list(ticksuffix = "%"),
-              barmode = 'stack', hovermode = "x unified"
-          )
-    
-  } else if( as.integer(xAxisSelection) == 2 & (samplesCluster == "None" | is.null(samplesCluster) )) {
-    
+  } else if (as.integer(xAxisSelection) == 2 &
+             (samplesCluster == "None" | is.null(samplesCluster))) {
     # 2.1. Samples/No clusters
-
-    # update tooltip label
-    # x$tooltip_label = paste(
-    #   x$tooltip_label,
-    #   paste0("Date: ", x$Date),
-    #   sep = '\n'
-    # )
     
-    # static ggplot2
-    # gr = ggplot(data = x, aes(text = tooltip_label)) +
-    #   
-    #   geom_bar(
-    #     aes(x = reorder(Sample, Date), y = Percentage, fill = Variant),
-    #     position = "fill",
-    #     stat = "identity"
-    #   ) +
-    #   
-    #   scale_y_continuous(expand = c(0, 0), labels = scales::percent) +
-    #   # scale_x_date(expand = c(0, 0), date_breaks = paste0("1 ", scaleDate)) +
-    #   
-    #   scale_fill_manual(values = paletteer_d("ggsci::default_igv")) +
-    #   
-    #   theme_minimal() +
-    #   
-    #   theme(
-    #     panel.grid = element_blank(),
-    #     axis.ticks.y = element_line(linewidth = .3),
-    #     axis.ticks.x = element_blank(),
-    #     axis.text.x = element_blank(),
-    #     plot.margin = margin(20, 20, 20, 20)
-    #   ) + 
-    #   
-    #   labs( x = "", y = "" ) # +
-    #   # facet_grid(as.formula(paste0(".~ ", samplesCluster)), scales = "free_x")
-    # 
-    # # interactive plotly
-    # gr_plotly = ggplotly(
-    #   gr, tooltip = c("text", "x"), dynamicTicks = F
-    # )
-      
+    # reorder by date
+    if('Date' %in% colnames(x)){
+      # plot
       gr_plotly = plot_ly(
-          x, x = ~Sample, y = ~Percentage, type = 'bar', 
-          color = ~Variant, stroke = ~Variant, strokes = "grey50"
-      ) |> 
-          layout(
-              yaxis = list(ticksuffix = "%"),
-              barmode = 'stack', hovermode = "x unified"
-          )
-    
+        x,
+        x = ~ reorder(Sample, Date),
+        y = ~ Percentage,
+        type = 'bar',
+        color = ~ Variant,
+        stroke = ~ Variant,
+        strokes = "grey50"
+      ) |>
+        layout(
+          yaxis = list(ticksuffix = "%", title = ""),
+          xaxis = list(showticklabels = FALSE, title = ""),
+          barmode = 'stack',
+          hovermode = "x unified"
+        )
+    } else {
+      # plot
+      gr_plotly = plot_ly(
+        x,
+        x = ~ Sample,
+        y = ~ Percentage,
+        type = 'bar',
+        color = ~ Variant,
+        stroke = ~ Variant,
+        strokes = "grey50"
+      ) |>
+        layout(
+          yaxis = list(ticksuffix = "%", title = ""),
+          xaxis = list(showticklabels = FALSE, title = ""),
+          barmode = 'stack',
+          hovermode = "x unified"
+        )
+    }
+
   } else {
     # 2.2. Samples/Clusters
     
-    # update tooltip label
-    # x$tooltip_label = paste(
-    #   x$tooltip_label,
-    #   paste0("Date: ", x$Date),
-    #   sep = '\n'
-    # )
+    # reorder by date
+    if('Date' %in% colnames(x)){
+      # plot
+      gr_plotly = x %>%
+        mutate_at("Variant", as.factor) %>%
+        group_by(get(samplesCluster)) %>%
+        group_map(# .keep = TRUE,
+          .f = ~ {
+            tidyr::complete(data = .x, Variant) %>%
+              plot_ly(
+                data = .,
+                x = ~ reorder(Sample, Date),
+                y = ~ Percentage,
+                type = 'bar',
+                color = ~ Variant,
+                stroke = ~ Variant,
+                strokes = "grey50",
+                showlegend = FALSE, # (.y == "B"),
+                legendgroup = ~ Variant
+              ) |>
+              layout(
+                yaxis = list(ticksuffix = "%", title = ""),
+                xaxis = list(showticklabels = FALSE, title = ""),
+                barmode = 'stack',
+                hovermode = "x unified"
+              )
+          }) %>%
+        subplot(nrows = 1,
+                shareX = TRUE,
+                shareY = TRUE)
+    } else {
+      # plot
+      gr_plotly = x %>%
+        mutate_at("Variant", as.factor) %>%
+        group_by(get(samplesCluster)) %>%
+        group_map(# .keep = TRUE,
+          .f = ~ {
+            tidyr::complete(data = .x, Variant) %>%
+              plot_ly(
+                data = .,
+                x = ~ Sample,
+                y = ~ Percentage,
+                type = 'bar',
+                color = ~ Variant,
+                stroke = ~ Variant,
+                strokes = "grey50",
+                showlegend = FALSE, # (.y == "B"),
+                legendgroup = ~ Variant
+              ) |>
+              layout(
+                yaxis = list(ticksuffix = "%", title = ""),
+                xaxis = list(showticklabels = FALSE, title = ""),
+                barmode = 'stack',
+                hovermode = "x unified"
+              )
+          }) %>%
+        subplot(nrows = 1,
+                shareX = TRUE,
+                shareY = TRUE)
+    }
     
-    # static ggplot2
-    # gr = ggplot(data = x, aes(text = tooltip_label)) +
-    #   
-    #   geom_bar(
-    #     aes(x = reorder(Sample, Date), y = Percentage, fill = Variant),
-    #     position = "fill",
-    #     stat = "identity"
-    #   ) +
-    #   
-    #   scale_y_continuous(expand = c(0, 0), labels = scales::percent) +
-    #   # scale_x_date(expand = c(0, 0), date_breaks = paste0("1 ", scaleDate)) +
-    #   
-    #   scale_fill_manual(values = paletteer_d("ggsci::default_igv")) +
-    #   
-    #   theme_minimal() +
-    #   
-    #   theme(
-    #     panel.grid = element_blank(),
-    #     axis.ticks.y = element_line(linewidth = .3),
-    #     axis.ticks.x = element_blank(),
-    #     axis.text.x = element_blank(),
-    #     plot.margin = margin(20, 20, 20, 20)
-    #   ) + 
-    #   
-    #   labs( x = "", y = "" ) + 
-    #   facet_grid(as.formula(paste0(".~ ", samplesCluster)), scales = "free_x")
-    # 
-    # # interactive plotly
-    # gr_plotly = ggplotly(
-    #   gr, tooltip = c("text", "x"), dynamicTicks = F
-    # )
-      
-      gr_plotly = plot_ly(
-          x, x = ~Sample, y = ~Percentage, type = 'bar', 
-          color = ~Variant, stroke = ~Variant, strokes = "grey50"
-      ) |> 
-          layout(
-              yaxis = list(ticksuffix = "%"),
-              barmode = 'stack', hovermode = "x unified"
-          )
   }
   
   # return result
   return(gr_plotly)
 }
 
-# Lineplot generation ----------------------------------------------------
-
-freyja_lineplot = function(
-    x,    
-    from, 
-    to, 
-    percentageThreshold,
-    xAxisSelection,
-    samplesCluster = NULL
-){ 
-  
-  # User input selection
-  # date range
-  x = x[Date >= from & Date <= to]
-  
-  # MIN percentage threshold for report
-  x = x[Percentage >= percentageThreshold/100]
-  
-  # barplot: Date vs Perc ---------------------------------------------------
-  
-  # tooltip label 
-  # https://stackoverflow.com/questions/34605919/formatting-mouse-over-labels-in-plotly-when-using-ggplotly
-  x$tooltip_label = paste0(
-    x$Variant, ": ", round(100 * x$Percentage, digits = 3), "%"
-  )
-  # summarize and generate reactive label
-  x = x[, by = Sample, tooltip_label := paste(tooltip_label, collapse = "\n")]
-  
-  # Graph drawing objective
-  if( as.integer(xAxisSelection) == 1 & (samplesCluster == "None" | is.null(samplesCluster) )){
-    # 1. Time series
-    
-    # update tooltip label
-    x$tooltip_label = paste(
-      x$tooltip_label,
-      paste0("Sample: ", x$Sample),
-      sep = '\n'
-    )
-    
-    # static ggplot2
-    gr = ggplot(
-      data = x,
-      aes(x = Date,
-          y = Percentage#,
-          #text = tooltip_label
-          )
-      ) +
-      geom_point(
-        aes(fill = Variant), 
-        shape = 21, color = "white", size = 2, stroke = .1
-      ) +
-      
-      geom_smooth(aes(color = Variant, fill = Variant)) +
-      
-      scale_y_continuous(
-        # expand = c(0, 0), 
-        # limits = c(0, 1), 
-        labels = scales::percent) +
-      # scale_x_date(
-      #   # expand = c(0, 0), 
-      #   date_breaks = "1 week") +
-      
-      scale_color_manual(values = paletteer_d("ggsci::planetexpress_futurama")) +
-      scale_fill_manual(values = paletteer_d("ggsci::planetexpress_futurama")) +
-      
-      theme_minimal() +
-      
-      theme(
-        panel.grid.major = element_line(linewidth = .3, linetype = "dashed", color = "grey75"),
-        panel.grid.minor = element_blank(),
-        axis.ticks = element_line(linewidth = .3),
-        axis.text.x = element_text(size = 8, angle = 45, hjust = 1),
-        plot.margin = margin(20, 20, 20, 20)
-      ) + 
-      
-      labs( x = "", y = "" )
-
-    # interactive plotly
-    # gr_plotly = ggplotly(gr, tooltip = c("x", "text"), dynamicTicks = TRUE) 
-    
-    gr_plotly = ggplotly(
-      gr, dynamicTicks = TRUE, tooltip = c("x", "color")
-    )
-    
-    
-  } else if( as.integer(xAxisSelection) == 2 & (samplesCluster == "None" | is.null(samplesCluster) )) {
-    
-    # 2.1. Samples/No clusters
-    
-    # update tooltip label
-    x$tooltip_label = paste(
-      x$tooltip_label,
-      paste0("Date: ", x$Date),
-      sep = '\n'
-    )
-    
-    # static ggplot2
-    gr = ggplot(
-      data = x,
-      aes(
-        x = reorder(Sample, Date),
-        y = Percentage,
-        fill = Variant,
-        text = tooltip_label
-      )) +
-      geom_point(
-        shape = 21,
-        color = "white",
-        size = 2,
-        stroke = .1
-      ) +
-      scale_y_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) +
-      # scale_x_date(expand = c(0, 0), date_breaks = "1 day") +
-      scale_color_manual(values = paletteer_d("ggsci::planetexpress_futurama")) +
-      scale_fill_manual(values = paletteer_d("ggsci::planetexpress_futurama")) +
-      theme_minimal() +
-      theme(
-        # panel.grid.major = element_line(linewidth = .3, linetype = "dashed", color = "grey75"),
-        # panel.grid.minor = element_blank(),
-        axis.ticks.x = element_blank(),
-        axis.text.x = element_blank(),
-        plot.margin = margin(20, 20, 20, 20)
-      ) + 
-      labs( x = "", y = "" )
-    
-    # interactive plotly
-    gr_plotly = ggplotly(
-      gr, tooltip = c("text", "x"), dynamicTicks = F
-    )
-    
-  } else {
-    # 2.2. Samples/Clusters
-    
-    # update tooltip label
-    x$tooltip_label = paste(
-      x$tooltip_label,
-      paste0("Date: ", x$Date),
-      sep = '\n'
-    )
-    
-    # static ggplot2
-    gr = ggplot(
-      data = x,
-      aes(
-        x = reorder(Sample, Date),
-        y = Percentage,
-        fill = Variant,
-        text = tooltip_label
-      )) +
-      geom_point(
-        shape = 21,
-        color = "white",
-        size = 2,
-        stroke = .1
-      ) +
-      scale_y_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) +
-      # scale_x_date(expand = c(0, 0), date_breaks = "1 day") +
-      scale_color_manual(values = paletteer_d("ggsci::planetexpress_futurama")) +
-      scale_fill_manual(values = paletteer_d("ggsci::planetexpress_futurama")) +
-      theme_minimal() +
-      theme(
-        # panel.grid.major = element_line(linewidth = .3, linetype = "dashed", color = "grey75"),
-        # panel.grid.minor = element_blank(),
-        axis.ticks.x = element_blank(),
-        axis.text.x = element_blank(),
-        plot.margin = margin(20, 20, 20, 20)
-      ) + 
-      labs( x = "", y = "" )+
-      facet_grid(as.formula(paste0(".~ ", samplesCluster)), scales = "free_x")
-    
-    # interactive plotly
-    gr_plotly = ggplotly(
-      gr, tooltip = c("text", "x"), dynamicTicks = F
-    )
-  }
-  
-  # return result
-  return(gr_plotly)
-}
+# # Lineplot generation ----------------------------------------------------
+# 
+# freyja_lineplot = function(
+#     x,    
+#     from, 
+#     to, 
+#     percentageThreshold,
+#     xAxisSelection,
+#     samplesCluster = NULL
+# ){ 
+#   
+#   # User input selection
+#   # date range
+#   x = x[Date >= from & Date <= to]
+#   
+#   # MIN percentage threshold for report
+#   x = x[Percentage >= percentageThreshold/100]
+#   
+#   # barplot: Date vs Perc ---------------------------------------------------
+#   
+#   # tooltip label 
+#   # https://stackoverflow.com/questions/34605919/formatting-mouse-over-labels-in-plotly-when-using-ggplotly
+#   x$tooltip_label = paste0(
+#     x$Variant, ": ", round(100 * x$Percentage, digits = 3), "%"
+#   )
+#   # summarize and generate reactive label
+#   x = x[, by = Sample, tooltip_label := paste(tooltip_label, collapse = "\n")]
+#   
+#   # Graph drawing objective
+#   if( as.integer(xAxisSelection) == 1 & (samplesCluster == "None" | is.null(samplesCluster) )){
+#     # 1. Time series
+#     
+#     # update tooltip label
+#     x$tooltip_label = paste(
+#       x$tooltip_label,
+#       paste0("Sample: ", x$Sample),
+#       sep = '\n'
+#     )
+#     
+#     # static ggplot2
+#     gr = ggplot(
+#       data = x,
+#       aes(x = Date,
+#           y = Percentage#,
+#           #text = tooltip_label
+#           )
+#       ) +
+#       geom_point(
+#         aes(fill = Variant), 
+#         shape = 21, color = "white", size = 2, stroke = .1
+#       ) +
+#       
+#       geom_smooth(aes(color = Variant, fill = Variant)) +
+#       
+#       scale_y_continuous(
+#         # expand = c(0, 0), 
+#         # limits = c(0, 1), 
+#         labels = scales::percent) +
+#       # scale_x_date(
+#       #   # expand = c(0, 0), 
+#       #   date_breaks = "1 week") +
+#       
+#       scale_color_manual(values = paletteer_d("ggsci::planetexpress_futurama")) +
+#       scale_fill_manual(values = paletteer_d("ggsci::planetexpress_futurama")) +
+#       
+#       theme_minimal() +
+#       
+#       theme(
+#         panel.grid.major = element_line(linewidth = .3, linetype = "dashed", color = "grey75"),
+#         panel.grid.minor = element_blank(),
+#         axis.ticks = element_line(linewidth = .3),
+#         axis.text.x = element_text(size = 8, angle = 45, hjust = 1),
+#         plot.margin = margin(20, 20, 20, 20)
+#       ) + 
+#       
+#       labs( x = "", y = "" )
+# 
+#     # interactive plotly
+#     # gr_plotly = ggplotly(gr, tooltip = c("x", "text"), dynamicTicks = TRUE) 
+#     
+#     gr_plotly = ggplotly(
+#       gr, dynamicTicks = TRUE, tooltip = c("x", "color")
+#     )
+#     
+#     
+#   } else if( as.integer(xAxisSelection) == 2 & (samplesCluster == "None" | is.null(samplesCluster) )) {
+#     
+#     # 2.1. Samples/No clusters
+#     
+#     # update tooltip label
+#     x$tooltip_label = paste(
+#       x$tooltip_label,
+#       paste0("Date: ", x$Date),
+#       sep = '\n'
+#     )
+#     
+#     # static ggplot2
+#     gr = ggplot(
+#       data = x,
+#       aes(
+#         x = reorder(Sample, Date),
+#         y = Percentage,
+#         fill = Variant,
+#         text = tooltip_label
+#       )) +
+#       geom_point(
+#         shape = 21,
+#         color = "white",
+#         size = 2,
+#         stroke = .1
+#       ) +
+#       scale_y_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) +
+#       # scale_x_date(expand = c(0, 0), date_breaks = "1 day") +
+#       scale_color_manual(values = paletteer_d("ggsci::planetexpress_futurama")) +
+#       scale_fill_manual(values = paletteer_d("ggsci::planetexpress_futurama")) +
+#       theme_minimal() +
+#       theme(
+#         # panel.grid.major = element_line(linewidth = .3, linetype = "dashed", color = "grey75"),
+#         # panel.grid.minor = element_blank(),
+#         axis.ticks.x = element_blank(),
+#         axis.text.x = element_blank(),
+#         plot.margin = margin(20, 20, 20, 20)
+#       ) + 
+#       labs( x = "", y = "" )
+#     
+#     # interactive plotly
+#     gr_plotly = ggplotly(
+#       gr, tooltip = c("text", "x"), dynamicTicks = F
+#     )
+#     
+#   } else {
+#     # 2.2. Samples/Clusters
+#     
+#     # update tooltip label
+#     x$tooltip_label = paste(
+#       x$tooltip_label,
+#       paste0("Date: ", x$Date),
+#       sep = '\n'
+#     )
+#     
+#     # static ggplot2
+#     gr = ggplot(
+#       data = x,
+#       aes(
+#         x = reorder(Sample, Date),
+#         y = Percentage,
+#         fill = Variant,
+#         text = tooltip_label
+#       )) +
+#       geom_point(
+#         shape = 21,
+#         color = "white",
+#         size = 2,
+#         stroke = .1
+#       ) +
+#       scale_y_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) +
+#       # scale_x_date(expand = c(0, 0), date_breaks = "1 day") +
+#       scale_color_manual(values = paletteer_d("ggsci::planetexpress_futurama")) +
+#       scale_fill_manual(values = paletteer_d("ggsci::planetexpress_futurama")) +
+#       theme_minimal() +
+#       theme(
+#         # panel.grid.major = element_line(linewidth = .3, linetype = "dashed", color = "grey75"),
+#         # panel.grid.minor = element_blank(),
+#         axis.ticks.x = element_blank(),
+#         axis.text.x = element_blank(),
+#         plot.margin = margin(20, 20, 20, 20)
+#       ) + 
+#       labs( x = "", y = "" )+
+#       facet_grid(as.formula(paste0(".~ ", samplesCluster)), scales = "free_x")
+#     
+#     # interactive plotly
+#     gr_plotly = ggplotly(
+#       gr, tooltip = c("text", "x"), dynamicTicks = F
+#     )
+#   }
+#   
+#   # return result
+#   return(gr_plotly)
+# }
