@@ -40,6 +40,16 @@ ui <- fluidPage(
       hr(),
       # Plot by Date or Samples (x-axis)
       radioButtons(
+        inputId = "barplotToolSelection",
+        label = "Software tool",
+        # h4("Χ-axis values"),
+        choices = list("Freyja" = 1,
+                       "lineagespot" = 2),
+        selected = 1
+      ),
+      hr(),
+      # Plot by Date or Samples (x-axis)
+      radioButtons(
         inputId = "barplotXaxisSelection",
         label = "Χ-axis values",
         # h4("Χ-axis values"),
@@ -118,13 +128,13 @@ ui <- fluidPage(
       tabsetPanel(
         id = "graphPanel",
         tabPanel(
-          title = "Barplot",
-          plotlyOutput(outputId = 'barplotGraph',
+          title = "Freyja",
+          plotlyOutput(outputId = 'freyjaGraph',
                        height = "700px")
         ),
         tabPanel(
-          title = "Lineplot",
-          plotlyOutput(outputId = 'lineplotGraph',
+          title = "lineagespot",
+          plotlyOutput(outputId = 'lineagespotGraph',
                        height = "700px")
         )
       ),
@@ -182,7 +192,7 @@ server <- function(input, output, session) {
   # -------------------------------------------------------------------------
 
   # barplot Tab - graph
-  output$barplotGraph <- renderPlotly({
+  output$freyjaGraph <- renderPlotly({
     
     # require input data & metadata upload
     req(input$upload_data)
@@ -210,38 +220,6 @@ server <- function(input, output, session) {
     # return plot
     return(res_barplot)
   })
-  
-  # -------------------------------------------------------------------------
-  
-  # # lineplot Tab - graph
-  # output$lineplotGraph <- renderPlotly({
-  #   
-  #   # require input data & metadata upload
-  #   req(input$upload_data)
-  #   req(input$upload_metadata)
-  #   
-  #   # generate barplot
-  #   res_lineplot = freyja_lineplot(
-  #     x = freyjaSummarized(), 
-  #     from = input$barplotDateRange[1], # starting from
-  #     to = input$barplotDateRange[2], # ending on
-  #     xAxisSelection = input$barplotXaxisSelection, # select to plot by Date or by Sample (default)
-  #     percentageThreshold = input$barplotPercentage, # % MIN threshold
-  #     samplesCluster = input$barplotSelectCluster # cluster variable
-  #   )
-  #   
-  #   # # by default:
-  #   # # hide display mode bar
-  #   # # compare data on hover
-  #   # res_lineplot <- res_lineplot  |>
-  #   #   layout(
-  #   #     hovermode = 'x'
-  #   #   )
-  #   # # config(displayModeBar = FALSE) |>
-  #   
-  #   # return plot
-  #   return(res_lineplot)
-  # })
 
   # -------------------------------------------------------------------------
 
