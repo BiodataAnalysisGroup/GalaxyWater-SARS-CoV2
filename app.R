@@ -10,6 +10,7 @@ library(paletteer) # for colors see: https://r-charts.com/color-palettes/
 
 # load Freyja pipeline preprocessing and graph functions
 source("Freyja_functions.R")
+source("lineagespot_functions.R")
 
 # Define UI
 ui <- fluidPage(
@@ -29,6 +30,13 @@ ui <- fluidPage(
       width = 2,
       h3('SARS-CoV-2 dashboard'),
       hr(),
+      # Create graph
+      actionButton(
+        inputId = "barplotCreateButton",
+        label = "Create graph" ,
+        icon = icon("chart-column")
+      ),
+      hr(),
       # Upload user data (compatible with Galaxy output)
       fileInput(inputId = "upload_data", label = "Upload data"),
       hr(),
@@ -38,7 +46,7 @@ ui <- fluidPage(
       downloadButton("downloadSummarized", "Download summarized", class = "customButton"),
       downloadButton("downloadLineages", "Download lineages"),
       hr(),
-      # Plot by Date or Samples (x-axis)
+      # Software pipeline used
       radioButtons(
         inputId = "barplotToolSelection",
         label = "Software tool",
@@ -102,10 +110,10 @@ ui <- fluidPage(
           label = "Reset" ,
           icon = icon("broom")
         ),
-        # Update
+        # Update -> Subset
         actionButton(
           inputId = "barplotUpdateButton",
-          label = "Update graph" ,
+          label = "Subset graph" ,
           icon = icon("wand-magic-sparkles")
         )
       ),
@@ -125,19 +133,23 @@ ui <- fluidPage(
     mainPanel = mainPanel(
       width = 10,
       # Reactive graphs
-      tabsetPanel(
-        id = "graphPanel",
-        tabPanel(
-          title = "Freyja",
-          plotlyOutput(outputId = 'freyjaGraph',
-                       height = "700px")
-        ),
-        tabPanel(
-          title = "lineagespot",
-          plotlyOutput(outputId = 'lineagespotGraph',
-                       height = "700px")
-        )
-      ),
+      plotlyOutput(outputId = 'dataGraph',
+                   height = "700px"),
+      
+      # tabsetPanel(
+      #   id = "graphPanel",
+      #   tabPanel(
+      #     title = "Freyja",
+      #     plotlyOutput(outputId = 'freyjaGraph',
+      #                  height = "700px")
+      #   ),
+      #   tabPanel(
+      #     title = "lineagespot",
+      #     plotlyOutput(outputId = 'lineagespotGraph',
+      #                  height = "700px")
+      #   )
+      # ),
+      
       # DataTables
       tabsetPanel(
         id = "DTpanel",
@@ -156,17 +168,22 @@ server <- function(input, output, session) {
   # Process Galaxy SARS-CoV-2 pipeline results ------------------------------
 
   # generate list object (server-side, once per user)
+  # Freyja:
   # [[1]] summarized results
   # [[2]] lineage results
+  # lineagespot:
+  # [[1]] lineage results
 
   # reactive values
-  freyjaSummarized_initial = reactiveVal(NA)
-  freyjaSummarized = reactiveVal(NA)
-  freyjaLineages = reactiveVal(NA)
-  
+  dataInitial = reactiveVal(NA)
+  dataSummarized = reactiveVal(NA)
+  dataLineages = reactiveVal(NA)
+
+  # -------------------------------------------------------------------------
+
   # initial data
   observeEvent(
-    c(input$upload_data, input$upload_metadata),
+    input$barplotCreateButton, # c(input$upload_data, input$upload_metadata),
     {
       # require both data & metadata
       req(input$upload_data)
@@ -175,38 +192,84 @@ server <- function(input, output, session) {
       # access file name and path
       inputData = fread(input$upload_data$datapath)
       inputMetadata = fread(input$upload_metadata$datapath)
-
-      # preprocess Freyja pipeline results
-      result = freyja_results_preprocessing(
-        data = inputData,
-        metadata = inputMetadata
-      )
-
-      # return merged data tables
-      freyjaSummarized_initial(result[[1]])
-      freyjaSummarized(result[[1]])
-      freyjaLineages(result[[2]])
+      
+      if(input$barplotToolSelection == 1){ # Freyja
+        
+        # preprocess pipeline results
+        result = freyja_results_preprocessing(
+          data = inputData,
+          metadata = inputMetadata
+        )
+        
+        # return merged data tables
+        dataInitial(result[[1]])
+        dataSummarized(result[[1]])
+        dataLineages(result[[2]])
+        
+      } else if(input$barplotToolSelection == 2){ # lineagespot
+        
+        # preprocess pipeline results
+        result = lineagespot_results_preprocessing(
+          data = inputData,
+          metadata = inputMetadata
+        )
+        
+        # return merged data tables
+        dataInitial(result)
+        dataSummarized(data.frame())
+        dataLineages(result)
+         
+      }
+      
+      
     }
   )
   
   # -------------------------------------------------------------------------
 
   # barplot Tab - graph
-  output$freyjaGraph <- renderPlotly({
+  output$dataGraph <- renderPlotly({
     
-    # require input data & metadata upload
-    req(input$upload_data)
-    req(input$upload_metadata)
+    # require create graph button
+    req(input$barplotCreateButton)
     
-    # generate barplot
-    res_barplot = freyja_barplot(
-      x = freyjaSummarized(), 
-      from = input$barplotDateRange[1], # starting from
-      to = input$barplotDateRange[2], # ending on
-      xAxisSelection = input$barplotXaxisSelection, # select to plot by Date or by Sample (default)
-      percentageThreshold = input$barplotPercentage, # % MIN threshold
-      samplesCluster = input$barplotSelectCluster # cluster variable
-    )
+    # req(
+    #   dataInitial,
+    #   dataSummarized,
+    #   dataLineages
+    # )
+    # 
+    # # require create graph button
+    # req(input$barplotCreateButton)
+    # # require input data & metadata upload
+    # req(input$upload_data)
+    # req(input$upload_metadata)
+    
+    if(input$barplotToolSelection == 1){ # Freyja
+      
+      # generate barplot
+      res_barplot = freyja_barplot(
+        x = dataSummarized(), 
+        from = input$barplotDateRange[1], # starting from
+        to = input$barplotDateRange[2], # ending on
+        xAxisSelection = input$barplotXaxisSelection, # select to plot by Date or by Sample (default)
+        percentageThreshold = input$barplotPercentage, # % MIN threshold
+        samplesCluster = input$barplotSelectCluster # cluster variable
+      )
+      
+    } else if(input$barplotToolSelection == 2){ # lineagespot
+      
+      # generate barplot
+      res_barplot = lineagespot_barplot(
+        x = dataLineages(), 
+        from = input$barplotDateRange[1], # starting from
+        to = input$barplotDateRange[2], # ending on
+        xAxisSelection = input$barplotXaxisSelection, # select to plot by Date or by Sample (default)
+        percentageThreshold = input$barplotPercentage, # % MIN threshold
+        samplesCluster = input$barplotSelectCluster # cluster variable
+      )
+      
+    }
     
     # # by default:
     # # hide display mode bar
@@ -225,16 +288,35 @@ server <- function(input, output, session) {
 
   # Tab - DT - summarized
   output$barplotDTsummarized <- DT::renderDataTable({
-    # require input data & metadata upload
-    req(input$upload_data)
-    req(input$upload_metadata)
-    # generate DT
-    res_dt = freyjaSummarized()
-    # User input selection
-    # date range
-    res_dt = res_dt[Date >= input$barplotDateRange[1] & Date <= input$barplotDateRange[2]]
-    # MIN percentage threshold for report
-    res_dt = res_dt[Percentage >= input$barplotPercentage/100]
+    
+    # require create graph button
+    req(input$barplotCreateButton)
+    
+    # req(
+    #   dataInitial,
+    #   dataSummarized,
+    #   dataLineages
+    # )
+    # 
+    # # require create graph button
+    # req(input$barplotCreateButton)
+    # # require input data & metadata upload
+    # req(input$upload_data)
+    # req(input$upload_metadata)
+    
+    if(input$barplotToolSelection == 1){
+      # generate DT
+      res_dt = dataSummarized()
+      # User input selection
+      # date range
+      res_dt = res_dt[Date >= input$barplotDateRange[1] & Date <= input$barplotDateRange[2]]
+      # MIN percentage threshold for report
+      res_dt = res_dt[Percentage >= input$barplotPercentage/100]
+    } else if(input$barplotToolSelection == 2){
+      # generate DT
+      res_dt = dataSummarized()
+    }
+    
     # return DT
     return(res_dt)
   })
@@ -251,10 +333,10 @@ server <- function(input, output, session) {
       # check for selection event
       if(!is.null(searched_rows)){
         # subset for search results
-        write.csv(freyjaSummarized_initial()[searched_rows,], file)  
+        write.csv(dataInitial()[searched_rows,], file)  
       } else {
         # write the entire processed table
-        write.csv(freyjaSummarized_initial(), file)  
+        write.csv(dataInitial(), file)  
       }
     }
   )
@@ -263,16 +345,37 @@ server <- function(input, output, session) {
 
   # Tab - DT - lineages
   output$barplotDTlineages <- DT::renderDataTable({
-    # require input data & metadata upload
-    req(input$upload_data)
-    req(input$upload_metadata)
+    
+    # require create graph button
+    req(input$barplotCreateButton)
+    
+    # req(
+    #   dataInitial,
+    #   dataSummarized,
+    #   dataLineages
+    # )
+    # 
+    # # require create graph button
+    # req(input$barplotCreateButton)
+    # # require input data & metadata upload
+    # req(input$upload_data)
+    # req(input$upload_metadata)
+    
     # generate DT
-    res_dt = freyjaLineages()
+    res_dt = dataLineages()
     # User input selection
     # date range
     res_dt = res_dt[Date >= input$barplotDateRange[1] & Date <= input$barplotDateRange[2]]
-    # MIN percentage threshold for report
-    res_dt = res_dt[abundance >= input$barplotPercentage/100]
+    
+    
+    if(input$barplotToolSelection == 1){ # Freyja
+      # MIN percentage threshold for report
+      res_dt = res_dt[abundance >= input$barplotPercentage/100]
+    } else if(input$barplotToolSelection == 2){ # lineagespot
+      # MIN percentage threshold for report
+      res_dt = res_dt[Percentage >= input$barplotPercentage/100] 
+    }
+    
     # return DT
     return(res_dt)
   })
@@ -289,10 +392,10 @@ server <- function(input, output, session) {
       # check for selection event
       if(!is.null(searched_rows)){
         # subset for search results
-        write.csv(freyjaLineages()[searched_rows,], file)  
+        write.csv(dataLineages()[searched_rows,], file)  
       } else {
         # write the entire processed table
-        write.csv(freyjaLineages(), file)  
+        write.csv(dataLineages(), file)  
       }
     }
   )
@@ -303,16 +406,32 @@ server <- function(input, output, session) {
   observeEvent(
     input$barplotUpdateButton,
     {
-      # show searched data from barplot
-      req(input$barplotDTsummarized_rows_all)
-      searched_rows <- input$barplotDTsummarized_rows_all
-
-      # check for selection event
-      if(!is.null(searched_rows)){
-        freyjaSummarized(
-          freyjaSummarized_initial()[searched_rows,]
-        )
+      ###
+      if(input$barplotToolSelection == 1){ # Freyja
+        
+        # show searched data from barplot
+        req(input$barplotDTsummarized_rows_all)
+        searched_rows <- input$barplotDTsummarized_rows_all
+        
+        # check for selection event
+        if(!is.null(searched_rows)){
+          dataSummarized(
+            dataInitial()[searched_rows,]
+          )
+        }
+      } else if(input$barplotToolSelection == 2){ # lineagespot
+        # show searched data from barplot
+        req(input$barplotDTlineages_rows_all)
+        searched_rows <- input$barplotDTlineages_rows_all
+        
+        # check for selection event
+        if(!is.null(searched_rows)){
+          dataLineages(
+            dataInitial()[searched_rows,]
+          )
+        }
       }
+      ###
     }
   )
 
@@ -320,53 +439,103 @@ server <- function(input, output, session) {
 
   # Session information
   output$pipeline <- renderText({
-    # require both data & metadata
-    req(input$upload_data)
-    req(input$upload_metadata)
-    paste0("Galaxy pipeline: ", "Freyja")
+    
+    # 
+    req(input$barplotCreateButton)
+    
+    # # require both data & metadata
+    # req(input$upload_data)
+    # req(input$upload_metadata)
+    
+    # check tool selected
+    if(input$barplotToolSelection == 1){ # Freyja
+      tool = "Freyja"
+    } else if(input$barplotToolSelection == 2){ # lineagespot
+      tool = "lineagespot"
+    }
+    
+    # return software tool used
+    return(
+      paste0("Galaxy pipeline: ", tool)
+    )
+    
   })
   output$fileName <- renderText({
-    # require both data & metadata
-    req(input$upload_data)
-    req(input$upload_metadata)
+    
+    # 
+    req(input$barplotCreateButton)
+    
+    
+    # # require both data & metadata
+    # req(input$upload_data)
+    # req(input$upload_metadata)
+    
     paste0("File: ", input$upload_data$name)
   })
   output$fileDate <- renderText({
-    # require both data & metadata
-    req(input$upload_data)
-    req(input$upload_metadata)
+    
+    # 
+    req(input$barplotCreateButton)
+    
+    
+    # # require both data & metadata
+    # req(input$upload_data)
+    # req(input$upload_metadata)
+    
     paste0("Date: ", file.info(input$upload_data$datapath)$mtime)
   })
   output$NoSamples <- renderText({
-    # require both data & metadata
-    req(input$upload_data)
-    req(input$upload_metadata)
-    paste0("Samples: ", freyjaSummarized_initial()$Sample |> unique() |> length() |> as.character() )
+    
+    # 
+    req(input$barplotCreateButton)
+    
+    # # require both data & metadata
+    # req(input$upload_data)
+    # req(input$upload_metadata)
+    
+    # check tool selected
+    if(input$barplotToolSelection == 1){ # Freyja (uppercase)
+      noSamples = paste0("Samples: ", dataInitial()$Sample |> unique() |> length() |> as.character() )
+    } else if(input$barplotToolSelection == 2){ # lineagespot (lowercase)
+      noSamples = paste0("Samples: ", dataInitial()$sample |> unique() |> length() |> as.character() )
+    }
+    
+    # return number of samples
+    return(noSamples)
+    
   })
   output$NoLineages <- renderText({
-    # require both data & metadata
-    req(input$upload_data)
-    req(input$upload_metadata)
-    paste0("Lineages: ", freyjaLineages()$lineage |> unique() |> length() |> as.character())
+    
+    # 
+    req(input$barplotCreateButton)
+    
+    if(input$barplotToolSelection == 1){ # Freyja
+      paste0("Lineages: ", dataLineages()$lineage |> unique() |> length() |> as.character())
+    } else if(input$barplotToolSelection == 2){ # lineagespot
+      paste0("Lineages: ", dataInitial()$lineage |> unique() |> length() |> as.character())
+    }
+    
+    # # require both data & metadata
+    # req(input$upload_data)
+    # req(input$upload_metadata)
+    
+    
   })
-  
-  # reactive values
-  freyjaSummarized_initial = reactiveVal(NA)
-  freyjaSummarized = reactiveVal(NA)
-  freyjaLineages = reactiveVal(NA)
   
   # -------------------------------------------------------------------------
   
   observeEvent(
-    c(input$upload_data, input$upload_metadata),
+    
+    input$barplotCreateButton,
+    # c(input$upload_data, input$upload_metadata),
     {
       # require both data & metadata
       req(input$upload_data)
       req(input$upload_metadata)
       
       # calculate values
-      startVal = freyjaSummarized()$Date |> min()
-      endVal = freyjaSummarized()$Date |> max()
+      startVal = dataInitial()$Date |> min()
+      endVal = dataInitial()$Date |> max()
       
       # update dateRangeInput widget
       updateDateRangeInput(
@@ -380,12 +549,13 @@ server <- function(input, output, session) {
   )
   
   # Reset graph -------------------------------------------------------------
+  
   observeEvent(
     input$barplotResetButton,
     {
       # calculate values
-      startVal = freyjaSummarized_initial()$Date |> min()
-      endVal = freyjaSummarized_initial()$Date |> max()
+      startVal = dataInitial()$Date |> min()
+      endVal = dataInitial()$Date |> max()
       # update dateRangeInput widget
       updateDateRangeInput(
         inputId = 'barplotDateRange',
@@ -396,9 +566,16 @@ server <- function(input, output, session) {
       )
       reset("barplotSelectCluster")
       reset("barplotPercentage")
-      freyjaSummarized( freyjaSummarized_initial() )
+      
+      if(input$barplotToolSelection == 1){ # Freyja
+        dataSummarized( dataInitial() )
+      } else if(input$barplotToolSelection == 2){ # lineagespot
+        dataLineages( dataInitial() )
+      }
+
     }
   )
+  
 }
 
 # Run the application 

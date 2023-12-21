@@ -49,7 +49,7 @@ lineagespot_results_preprocessing = function(data, metadata){
     paste0(lineagespot_res$sample, "_", lineagespot_res$lineage),
     paste0(perc_list$sample, "_", perc_list$lineage)
   )
-  lineagespot_res$Percentage = perc_list[idx_match,]$percentages
+  lineagespot_res$Percentage = perc_list[idx_match,]$percentages # |> round(digits = 2)
   
   # return
   return(
@@ -72,10 +72,7 @@ lineagespot_barplot = function(x,
   x = x[Date >= from & Date <= to]
   
   # MIN percentage threshold for report
-  x = x[Percentage >= percentageThreshold / 100]
-  
-  # 100*Perc
-  x$Percentage = x$Percentage * 100
+  x = x[Percentage >= percentageThreshold ] # / 100]
   
   # Barplot drawing
   if (as.integer(xAxisSelection) == 1 &

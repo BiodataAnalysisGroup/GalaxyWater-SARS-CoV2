@@ -83,6 +83,10 @@ freyja_results_preprocessing = function(data, metadata){
     ]
   }
   
+  # # round proportions (two digits)
+  # freyja_summarized$Percentage = freyja_summarized$Percentage |> round(digits = 2)
+  # freyja_lineages$abundance = freyja_lineages$abundance |> round(digits = 2)
+  
   # return pre-processed data
   freyja_preprocessed = list(
     freyja_summarized,
